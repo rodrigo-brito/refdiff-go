@@ -7,6 +7,7 @@ import (
 	"go/token"
 	"io/ioutil"
 	"strings"
+	"text/scanner"
 )
 
 type NodeType string
@@ -19,7 +20,7 @@ const (
 type Node struct {
 	Start          int      `json:"start"`
 	End            int      `json:"end"`
-	Body           string   `json:"body"`
+	Tokens         []string `json:"tokens"`
 	Name           string   `json:"name"`
 	Type           NodeType `json:"type"`
 	Namespace      string   `json:"namespace"`
@@ -62,19 +63,44 @@ func (e Extractor) getSource(start, end token.Pos) string {
 	return string(e.fileContent[start-e.astFile.Pos() : end-e.astFile.Pos()])
 }
 
+func (e Extractor) getTokens(start, end token.Pos) []string {
+	var (
+		scan   scanner.Scanner
+		tokens []string
+	)
+
+	scan.Init(strings.NewReader(e.getSource(start, end)))
+	scan.Filename = e.fileName
+	for tok := scan.Scan(); tok != scanner.EOF; tok = scan.Scan() {
+		tokens = append(tokens, scan.TokenText())
+	}
+
+	return tokens
+}
+
+func (e Extractor) getNamespace(sufix string) string {
+	fileParts := strings.Split(e.fileName, "/")
+	if len(fileParts) == 1 {
+		return e.fileName
+	}
+	return strings.Join(fileParts[:len(fileParts)-1], "/")
+}
+
 func (e Extractor) Extract() []Node {
 	nodes := make([]Node, 0)
+	namesapace := e.getNamespace("")
 
 	ast.Inspect(e.astFile, func(node ast.Node) bool {
 		switch definition := node.(type) {
 		case *ast.TypeSpec: // Structs
 			if structType, ok := definition.Type.(*ast.StructType); ok {
 				nodes = append(nodes, Node{
-					Start: e.fileSet.Position(structType.Pos()).Line,
-					End:   e.fileSet.Position(structType.End()).Line,
-					Body:  e.getSource(structType.Pos(), structType.End()),
-					Name:  definition.Name.Name,
-					Type:  StructType,
+					Start:     e.fileSet.Position(structType.Pos()).Line,
+					End:       e.fileSet.Position(structType.End()).Line,
+					Name:      definition.Name.Name,
+					Type:      StructType,
+					Namespace: namesapace,
+					Tokens:    e.getTokens(structType.Pos(), structType.End()),
 				})
 			}
 		case *ast.FuncDecl: // Methods
@@ -112,10 +138,11 @@ func (e Extractor) Extract() []Node {
 				Start:          e.fileSet.Position(definition.Body.Pos()).Line,
 				End:            e.fileSet.Position(definition.Body.End()).Line,
 				Name:           name,
-				Body:           e.getSource(definition.Body.Pos(), definition.Body.End()),
-				Type:           MethodType,
 				ParameterNames: paramNames,
 				ParameterTypes: paramTypes,
+				Type:           MethodType,
+				Namespace:      namesapace,
+				Tokens:         e.getTokens(definition.Body.Pos(), definition.Body.End()),
 			})
 		}
 		return true

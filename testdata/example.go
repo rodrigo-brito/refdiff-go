@@ -5,6 +5,10 @@ import (
 	"image"
 )
 
+type Printer interface {
+	Print()
+}
+
 type Test struct {
 	Name string
 	Year int
@@ -13,7 +17,7 @@ type Test struct {
 
 func myfunc(i int, s string, err error, pt image.Point, x []float64) {}
 
-func (t *Test) Foo() {
+func (t *Test) Print() {
 	fmt.Println("test")
 }
 

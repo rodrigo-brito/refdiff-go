@@ -13,19 +13,20 @@ import (
 type NodeType string
 
 const (
-	MethodType NodeType = "METHOD"
-	StructType NodeType = "STRUCT"
+	FunctionType  NodeType = "Function"
+	StructType    NodeType = "Struct"
+	InterfaceType NodeType = "Interface"
 )
 
 type Node struct {
+	Type           NodeType `json:"type"`
 	Start          int      `json:"start"`
 	End            int      `json:"end"`
-	Tokens         []string `json:"tokens"`
 	Name           string   `json:"name"`
-	Type           NodeType `json:"type"`
+	Tokens         []string `json:"tokens"`
 	Namespace      string   `json:"namespace"`
-	ParameterNames []string `json:"parameter_names"`
-	ParameterTypes []string `json:"parameter_types"`
+	ParameterNames []string `json:"parameter_names,omitempty"`
+	ParameterTypes []string `json:"parameter_types,omitempty"`
 }
 
 func (n Node) String() string {
@@ -92,7 +93,7 @@ func (e Extractor) Extract() []Node {
 
 	ast.Inspect(e.astFile, func(node ast.Node) bool {
 		switch definition := node.(type) {
-		case *ast.TypeSpec: // Structs
+		case *ast.TypeSpec: // Structs / Interfaces
 			if structType, ok := definition.Type.(*ast.StructType); ok {
 				nodes = append(nodes, Node{
 					Start:     e.fileSet.Position(structType.Pos()).Line,
@@ -102,8 +103,18 @@ func (e Extractor) Extract() []Node {
 					Namespace: namesapace,
 					Tokens:    e.getTokens(structType.Pos(), structType.End()),
 				})
+			} else if iface, ok := definition.Type.(*ast.InterfaceType); ok {
+				nodes = append(nodes, Node{
+					Start:     e.fileSet.Position(iface.Pos()).Line,
+					End:       e.fileSet.Position(iface.End()).Line,
+					Name:      definition.Name.Name,
+					Type:      InterfaceType,
+					Namespace: namesapace,
+					Tokens:    e.getTokens(iface.Pos(), iface.End()),
+				})
 			}
-		case *ast.FuncDecl: // Methods
+
+		case *ast.FuncDecl: // Functions
 			var structName string
 			if definition.Recv != nil && len(definition.Recv.List) > 0 {
 				typeObj := definition.Recv.List[0].Type
@@ -118,8 +129,13 @@ func (e Extractor) Extract() []Node {
 				}
 			}
 
-			var paramTypes []string
-			var paramNames []string
+			name := definition.Name.Name
+			if structName != "" {
+				name = fmt.Sprintf("%s.%s", structName, name)
+			}
+
+			paramTypes := make([]string, 0)
+			paramNames := make([]string, 0)
 			if definition.Type.Params != nil {
 				for _, field := range definition.Type.Params.List {
 					if len(field.Names) > 0 {
@@ -129,18 +145,13 @@ func (e Extractor) Extract() []Node {
 				}
 			}
 
-			name := fmt.Sprintf("%s(%s)", definition.Name.Name, strings.Join(paramTypes, ","))
-			if len(structName) > 0 {
-				name = fmt.Sprintf("(%s) %s", structName, name)
-			}
-
 			nodes = append(nodes, Node{
 				Start:          e.fileSet.Position(definition.Body.Pos()).Line,
 				End:            e.fileSet.Position(definition.Body.End()).Line,
 				Name:           name,
 				ParameterNames: paramNames,
 				ParameterTypes: paramTypes,
-				Type:           MethodType,
+				Type:           FunctionType,
 				Namespace:      namesapace,
 				Tokens:         e.getTokens(definition.Body.Pos(), definition.Body.End()),
 			})

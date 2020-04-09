@@ -1,5 +1,9 @@
 # go-ast-parser
 
+![tests](https://github.com/rodrigo-brito/go-ast-parser/workflows/tests/badge.svg)
+[![Go Report](https://goreportcard.com/badge/github.com/rodrigo-brito/go-ast-parser)](https://goreportcard.com/report/github.com/rodrigo-brito/go-ast-parser)
+[![GoDoc](https://godoc.org/github.com/rodrigo-brito/go-ast-parser?status.svg)](https://godoc.org/github.com/rodrigo-brito/go-ast-parser)
+
 Parser Go File in a list of structs, interfaces and functions
 
 ## Usage

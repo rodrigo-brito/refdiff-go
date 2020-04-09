@@ -13,9 +13,10 @@ import (
 type NodeType string
 
 const (
-	FunctionType  NodeType = "Function"
+	FileType      NodeType = "File"
 	StructType    NodeType = "Struct"
 	InterfaceType NodeType = "Interface"
+	FunctionType  NodeType = "Function"
 )
 
 type Node struct {
@@ -25,6 +26,7 @@ type Node struct {
 	Name           string   `json:"name"`
 	Tokens         []string `json:"tokens"`
 	Namespace      string   `json:"namespace"`
+	Parent         *string  `json:"parent"`
 	ParameterNames []string `json:"parameter_names,omitempty"`
 	ParameterTypes []string `json:"parameter_types,omitempty"`
 }
@@ -79,38 +81,59 @@ func (e Extractor) getTokens(start, end token.Pos) []string {
 	return tokens
 }
 
+func (e Extractor) getShortFilename() string {
+	parts := strings.Split(e.fileName, "/")
+	return parts[len(parts)-1]
+}
+
 func (e Extractor) getNamespace(sufix string) string {
 	fileParts := strings.Split(e.fileName, "/")
 	if len(fileParts) == 1 {
-		return e.fileName
+		return ""
 	}
-	return strings.Join(fileParts[:len(fileParts)-1], "/")
+	namespace := strings.Join(fileParts[:len(fileParts)-1], "/")
+	if len(sufix) > 0 {
+		namespace = fmt.Sprintf("%s/%s.", namespace, sufix)
+	} else {
+		namespace = fmt.Sprintf("%s/", namespace)
+	}
+	return namespace
 }
 
 func (e Extractor) Extract() []Node {
 	nodes := make([]Node, 0)
-	namesapace := e.getNamespace("")
 
 	ast.Inspect(e.astFile, func(node ast.Node) bool {
 		switch definition := node.(type) {
+		case *ast.File:
+			nodes = append(nodes, Node{
+				Start:     e.fileSet.Position(definition.Pos()).Line,
+				End:       e.fileSet.Position(definition.End()).Line,
+				Name:      e.getShortFilename(),
+				Type:      FileType,
+				Namespace: e.getNamespace(""),
+				Tokens:    e.getTokens(definition.Pos(), definition.End()),
+			})
 		case *ast.TypeSpec: // Structs / Interfaces
+			parent := e.getNamespace("") + e.getShortFilename()
 			if structType, ok := definition.Type.(*ast.StructType); ok {
 				nodes = append(nodes, Node{
+					Type:      StructType,
+					Parent:    &parent,
+					Namespace: e.getNamespace(""),
+					Name:      definition.Name.Name,
 					Start:     e.fileSet.Position(structType.Pos()).Line,
 					End:       e.fileSet.Position(structType.End()).Line,
-					Name:      definition.Name.Name,
-					Type:      StructType,
-					Namespace: namesapace,
 					Tokens:    e.getTokens(structType.Pos(), structType.End()),
 				})
 			} else if iface, ok := definition.Type.(*ast.InterfaceType); ok {
 				nodes = append(nodes, Node{
-					Start:     e.fileSet.Position(iface.Pos()).Line,
-					End:       e.fileSet.Position(iface.End()).Line,
-					Name:      definition.Name.Name,
-					Type:      InterfaceType,
-					Namespace: namesapace,
-					Tokens:    e.getTokens(iface.Pos(), iface.End()),
+					Type:   InterfaceType,
+					Parent: &parent,
+					Name:   definition.Name.Name,
+					Start:  e.fileSet.Position(iface.Pos()).Line,
+					End:    e.fileSet.Position(iface.End()).Line,
+					Tokens: e.getTokens(iface.Pos(), iface.End()),
 				})
 			}
 
@@ -129,11 +152,6 @@ func (e Extractor) Extract() []Node {
 				}
 			}
 
-			name := definition.Name.Name
-			if structName != "" {
-				name = fmt.Sprintf("%s.%s", structName, name)
-			}
-
 			paramTypes := make([]string, 0)
 			paramNames := make([]string, 0)
 			if definition.Type.Params != nil {
@@ -145,14 +163,19 @@ func (e Extractor) Extract() []Node {
 				}
 			}
 
+			parent := e.getNamespace("") + e.getShortFilename()
+			if len(structName) > 0 {
+				parent = e.getNamespace("") + structName
+			}
 			nodes = append(nodes, Node{
 				Start:          e.fileSet.Position(definition.Body.Pos()).Line,
 				End:            e.fileSet.Position(definition.Body.End()).Line,
-				Name:           name,
+				Name:           definition.Name.Name,
 				ParameterNames: paramNames,
 				ParameterTypes: paramTypes,
 				Type:           FunctionType,
-				Namespace:      namesapace,
+				Parent:         &parent,
+				Namespace:      e.getNamespace(structName),
 				Tokens:         e.getTokens(definition.Body.Pos(), definition.Body.End()),
 			})
 		}

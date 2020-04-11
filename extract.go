@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"go/ast"
 	"go/parser"
+	"go/scanner"
 	"go/token"
 	"io/ioutil"
 	"strings"
-	"text/scanner"
 )
 
 type NodeType string
@@ -24,9 +24,9 @@ type Node struct {
 	Start          int      `json:"start"`
 	End            int      `json:"end"`
 	Name           string   `json:"name"`
-	Tokens         []string `json:"tokens"`
 	Namespace      string   `json:"namespace"`
 	Parent         *string  `json:"parent"`
+	Tokens         []string `json:"tokens,omitempty"`
 	ParameterNames []string `json:"parameter_names,omitempty"`
 	ParameterTypes []string `json:"parameter_types,omitempty"`
 }
@@ -66,16 +66,26 @@ func (e Extractor) getSource(start, end token.Pos) string {
 	return string(e.fileContent[start-e.astFile.Pos() : end-e.astFile.Pos()])
 }
 
-func (e Extractor) getTokens(start, end token.Pos) []string {
+func (e Extractor) getFileTokens(start, end token.Pos) []string {
 	var (
 		scan   scanner.Scanner
 		tokens []string
 	)
 
-	scan.Init(strings.NewReader(e.getSource(start, end)))
-	scan.Filename = e.fileName
-	for tok := scan.Scan(); tok != scanner.EOF; tok = scan.Scan() {
-		tokens = append(tokens, scan.TokenText())
+	fset := token.NewFileSet()
+	source := e.getSource(start, end)
+	scan.Init(fset.AddFile(e.fileName, fset.Base(), len(source)), []byte(source), nil, scanner.ScanComments)
+	for {
+		position, tok, literal := scan.Scan()
+		if tok == token.EOF {
+			break
+		}
+
+		if literal == "" {
+			literal = tok.String()
+		}
+
+		tokens = append(tokens, fmt.Sprintf("%d-%d", position, int(position)+len(literal)+1))
 	}
 
 	return tokens
@@ -112,7 +122,7 @@ func (e Extractor) Extract() []Node {
 				Name:      e.getShortFilename(),
 				Type:      FileType,
 				Namespace: e.getNamespace(""),
-				Tokens:    e.getTokens(definition.Pos(), definition.End()),
+				Tokens:    e.getFileTokens(definition.Pos(), definition.End()),
 			})
 		case *ast.TypeSpec: // Structs / Interfaces
 			parent := e.getNamespace("") + e.getShortFilename()
@@ -124,7 +134,6 @@ func (e Extractor) Extract() []Node {
 					Name:      definition.Name.Name,
 					Start:     e.fileSet.Position(structType.Pos()).Line,
 					End:       e.fileSet.Position(structType.End()).Line,
-					Tokens:    e.getTokens(structType.Pos(), structType.End()),
 				})
 			} else if iface, ok := definition.Type.(*ast.InterfaceType); ok {
 				nodes = append(nodes, Node{
@@ -133,7 +142,6 @@ func (e Extractor) Extract() []Node {
 					Name:   definition.Name.Name,
 					Start:  e.fileSet.Position(iface.Pos()).Line,
 					End:    e.fileSet.Position(iface.End()).Line,
-					Tokens: e.getTokens(iface.Pos(), iface.End()),
 				})
 			}
 
@@ -176,7 +184,6 @@ func (e Extractor) Extract() []Node {
 				Type:           FunctionType,
 				Parent:         &parent,
 				Namespace:      e.getNamespace(structName),
-				Tokens:         e.getTokens(definition.Body.Pos(), definition.Body.End()),
 			})
 		}
 		return true

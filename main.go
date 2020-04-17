@@ -10,15 +10,21 @@ import (
 
 func main() {
 	var fileName = flag.String("file", "", "file path, ex: main.go")
+	var rootFolder = flag.String("directory", "", "root folder, ex: /tmp")
 	flag.NewFlagSet("file", flag.ExitOnError)
+	flag.NewFlagSet("directory", flag.ExitOnError)
 	flag.Parse()
+
+	if *rootFolder == "" {
+		*rootFolder = "."
+	}
 
 	if *fileName == "" {
 		fmt.Println("flag -file required.")
 		os.Exit(2)
 	}
 
-	extractor, err := NewExtractor(*fileName)
+	extractor, err := NewExtractor(*rootFolder, *fileName)
 	if err != nil {
 		log.Fatalf("error on init extractor: %v", err)
 	}

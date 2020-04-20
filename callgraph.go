@@ -11,16 +11,6 @@ import (
 	"golang.org/x/tools/go/ssa/ssautil"
 )
 
-//func main() {
-//	calls, err := GetCallGraph("", "testdata/src/example.go")
-//	if err != nil {
-//		fmt.Fprintf(os.Stderr, "callgraph: %s\n", err)
-//		os.Exit(1)
-//	}
-//	q.Q(calls)
-//	fmt.Println(calls)
-//}
-
 func GetCallGraph(dir string, file string) (map[string][]string, error) {
 	var (
 		defaultPackage  string
@@ -39,7 +29,7 @@ func GetCallGraph(dir string, file string) (map[string][]string, error) {
 		Tests: false,
 		Dir:   dir,
 	}
-	initial, err := packages.Load(cfg, file)
+	initial, err := packages.Load(cfg, "./...")
 	if err != nil {
 		return nil, err
 	}
@@ -78,7 +68,6 @@ func isValid(edge *callgraph.Edge) bool {
 
 	return caller.Pkg != nil &&
 		caller.Pkg.Pkg != nil &&
-		caller.Pkg.Pkg.Path() == "command-line-arguments" &&
 		callee.Name() != "init"
 }
 

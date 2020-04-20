@@ -8,7 +8,7 @@ import (
 )
 
 func TestExtractor_Extract(t *testing.T) {
-	extractor, err := NewExtractor(".", "testdata/example.go")
+	extractor, err := NewExtractor(".", "testdata/src/lib/validator.go")
 	require.Nil(t, err)
 
 	nodes := extractor.Extract()

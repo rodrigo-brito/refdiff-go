@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -27,4 +28,12 @@ func TestNormalizePackage(t *testing.T) {
 			require.Equal(t, tc.expected, res)
 		})
 	}
+}
+
+func TestGetCallGraph(t *testing.T) {
+	calls, err := GetCallGraph("/home/rodrigo/development/dep", "internal/...")
+	if err != nil {
+		t.Error(err)
+	}
+	fmt.Println(calls)
 }

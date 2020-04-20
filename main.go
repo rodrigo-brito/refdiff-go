@@ -30,7 +30,13 @@ func main() {
 	}
 
 	nodes := extractor.Extract()
-	err = json.NewEncoder(os.Stdout).Encode(nodes)
+	content, err := json.MarshalIndent(nodes, "", "\t")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	_, err = fmt.Fprint(os.Stdout, string(content))
+	//err = json.NewEncoder(os.Stdout).Encode(nodes)
 	if err != nil {
 		log.Fatal(err)
 	}

@@ -45,12 +45,11 @@ func (n Node) String() string {
 }
 
 type Extractor struct {
-	rootFolder    string
-	fileName      string
-	fileContent   []byte
-	astFile       *ast.File
-	fileSet       *token.FileSet
-	functionCalls map[string][]string
+	rootFolder  string
+	fileName    string
+	fileContent []byte
+	astFile     *ast.File
+	fileSet     *token.FileSet
 }
 
 type FunctionCall struct {
@@ -67,12 +66,6 @@ func NewExtractor(rootFolder, filename string) (*Extractor, error) {
 		fileName:   filename,
 		fileSet:    token.NewFileSet(),
 	}
-
-	// TODO: improve call graph
-	//extractor.functionCalls, err = GetCallGraph(rootFolder, filename)
-	//if err != nil {
-	//	//return nil, err
-	//}
 
 	path := fmt.Sprintf("%s/%s", rootFolder, filename)
 	extractor.fileContent, err = ioutil.ReadFile(path)
@@ -131,6 +124,9 @@ func (e Extractor) getShortFilename() string {
 func (e Extractor) getNamespace(sufix string) string {
 	fileParts := strings.Split(e.fileName, "/")
 	if len(fileParts) == 1 {
+		if len(sufix) > 0 {
+			return sufix + "."
+		}
 		return ""
 	}
 	namespace := strings.Join(fileParts[:len(fileParts)-1], "/")
@@ -252,12 +248,15 @@ func (e Extractor) Extract() []*Node {
 				End:            int(definition.End()) - 1,
 				Line:           e.fileSet.Position(definition.Pos()).Line,
 				HasBody:        true,
-				FunctionCalls:  e.functionCalls[e.getNamespace(receiverName)+definition.Name.Name],
 			})
 		case *ast.GenDecl:
 			if len(definition.Specs) > 0 {
 				if spec, ok := definition.Specs[0].(*ast.TypeSpec); ok {
-					if _, ok := spec.Type.(*ast.Ident); ok {
+					switch spec.Type.(type) {
+					case *ast.Ident,
+						*ast.MapType,
+						*ast.ArrayType,
+						*ast.SelectorExpr:
 						parent := e.getNamespace("") + e.getShortFilename()
 						nodes = append(nodes, &Node{
 							Type:      PrimitiveType,
@@ -272,7 +271,8 @@ func (e Extractor) Extract() []*Node {
 					}
 				}
 			}
-		case *ast.CallExpr:
+
+		case *ast.CallExpr: // Function calls
 			ident, ok := definition.Fun.(*ast.Ident)
 			if ok && ident.Obj != nil {
 				functionCalls = append(functionCalls, &FunctionCall{
@@ -292,7 +292,7 @@ func (e Extractor) Extract() []*Node {
 		return true
 	})
 
-	// get all function calls detected and insert on nodes
+	// get all function calls detected and insert in the origin nodes
 	e.updateFunctionCalls(nodes, functionCalls)
 
 	return nodes

@@ -39,9 +39,10 @@ func TestExtractor_getNamespace(t *testing.T) {
 		sufix  string
 		result string
 	}{
-		{"a/b/c.go", "(Myfunc)", "a/b/(Myfunc)."},
+		{"a/b/c.go", "MyStruct", "a/b/MyStruct."},
 		{"a/b/c.go", "", "a/b/"},
 		{"c.go", "", ""},
+		{"c.go", "Context", "Context."},
 	}
 
 	for _, tc := range tt {

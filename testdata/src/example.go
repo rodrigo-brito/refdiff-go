@@ -49,6 +49,11 @@ func (t *Test) PrintString(value string) {
 func (t *Test) PrintInt(value int) {
 	content := strconv.Itoa(value)
 	validator := new(lib.Validator)
+	fmt.Println("[áç~!]" +
+		"[áç~!]" +
+		"[áç~!]" +
+		"[áç~!]" +
+		"[áç~!]")
 	res := Bar(value)
 	if t.validator.ValidNumber(value, res) && validator.ValidName("test") {
 		t.PrintString(content)

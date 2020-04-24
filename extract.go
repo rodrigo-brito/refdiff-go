@@ -8,6 +8,7 @@ import (
 	"go/token"
 	"io/ioutil"
 	"strings"
+	"unicode/utf8"
 )
 
 type NodeType string
@@ -109,8 +110,8 @@ func (e Extractor) getFileTokens() []string {
 			literal = tok.String()
 		}
 
-		pos := fset.Position(position)
-		tokens = append(tokens, fmt.Sprintf("%d:%d:%d", pos.Line-1, pos.Column-1, len(literal)))
+		start := e.RealPosition(position)
+		tokens = append(tokens, fmt.Sprintf("%d-%d", start, start+utf8.RuneCountInString(literal)))
 	}
 
 	return tokens
@@ -158,6 +159,11 @@ func (e Extractor) extractParameters(fieldList *ast.FieldList) (names []string, 
 	return paramNames, paramTypes
 }
 
+// RealPosition converts position based on runes (UTF-8 characters)
+func (e Extractor) RealPosition(pos token.Pos) int {
+	return utf8.RuneCount(e.fileContent[:e.fileSet.Position(pos).Offset])
+}
+
 func (e Extractor) Extract() []*Node {
 	nodes := make([]*Node, 0)
 	functionCalls := make([]*FunctionCall, 0)
@@ -169,8 +175,8 @@ func (e Extractor) Extract() []*Node {
 				Type:      FileType,
 				Name:      e.getShortFilename(),
 				Namespace: e.getNamespace(""),
-				Start:     int(definition.Pos()) - 1,
-				End:       int(definition.End()) - 1,
+				Start:     e.RealPosition(definition.Pos()),
+				End:       e.RealPosition(definition.End()),
 				Line:      e.fileSet.Position(definition.Pos()).Line,
 				HasBody:   true,
 				Tokens:    e.getFileTokens(),
@@ -183,8 +189,8 @@ func (e Extractor) Extract() []*Node {
 					Parent:    &parent,
 					Namespace: e.getNamespace(""),
 					Name:      definition.Name.Name,
-					Start:     int(structType.Pos()) - 1,
-					End:       int(structType.End()) - 1,
+					Start:     e.RealPosition(structType.Pos()),
+					End:       e.RealPosition(structType.End()),
 					Line:      e.fileSet.Position(structType.Pos()).Line,
 					HasBody:   true,
 				})
@@ -195,8 +201,8 @@ func (e Extractor) Extract() []*Node {
 					Parent:    &parent,
 					Namespace: e.getNamespace(""),
 					Name:      interfaceName,
-					Start:     int(iface.Pos()) - 1,
-					End:       int(iface.End()) - 1,
+					Start:     e.RealPosition(iface.Pos()),
+					End:       e.RealPosition(iface.End()),
 					Line:      e.fileSet.Position(iface.Pos()).Line,
 					HasBody:   false,
 				})
@@ -208,8 +214,8 @@ func (e Extractor) Extract() []*Node {
 						nodes = append(nodes, &Node{
 							Type:           FunctionType,
 							Name:           definition.Names[0].Name,
-							Start:          int(definition.Pos()) - 1,
-							End:            int(definition.End()) - 1,
+							Start:          e.RealPosition(definition.Pos()),
+							End:            e.RealPosition(definition.End()),
 							Line:           e.fileSet.Position(definition.Pos()).Line,
 							Parent:         &parent,
 							Namespace:      e.getNamespace(interfaceName),
@@ -235,6 +241,7 @@ func (e Extractor) Extract() []*Node {
 			if len(receiverName) > 0 {
 				parent = e.getNamespace("") + receiverName
 			}
+
 			nodes = append(nodes, &Node{
 				Type:           FunctionType,
 				Name:           definition.Name.Name,
@@ -244,8 +251,8 @@ func (e Extractor) Extract() []*Node {
 				ParameterTypes: paramTypes,
 				Receiver:       &receiverName,
 				ReceiverAlias:  &receiverAlias,
-				Start:          int(definition.Pos()) - 1,
-				End:            int(definition.End()) - 1,
+				Start:          e.RealPosition(definition.Pos()),
+				End:            e.RealPosition(definition.End()),
 				Line:           e.fileSet.Position(definition.Pos()).Line,
 				HasBody:        true,
 			})
@@ -255,6 +262,7 @@ func (e Extractor) Extract() []*Node {
 					switch spec.Type.(type) {
 					case *ast.Ident,
 						*ast.MapType,
+						*ast.FuncType,
 						*ast.ArrayType,
 						*ast.SelectorExpr:
 						parent := e.getNamespace("") + e.getShortFilename()
@@ -263,8 +271,8 @@ func (e Extractor) Extract() []*Node {
 							Name:      spec.Name.Name,
 							Parent:    &parent,
 							Namespace: e.getNamespace(""),
-							Start:     int(definition.Pos()) - 1,
-							End:       int(definition.End()) - 1,
+							Start:     e.RealPosition(definition.Pos()),
+							End:       e.RealPosition(definition.End()),
 							Line:      e.fileSet.Position(definition.Pos()).Line,
 							HasBody:   false,
 						})
@@ -276,14 +284,14 @@ func (e Extractor) Extract() []*Node {
 			ident, ok := definition.Fun.(*ast.Ident)
 			if ok && ident.Obj != nil {
 				functionCalls = append(functionCalls, &FunctionCall{
-					Position: int(definition.Pos()) - 1,
+					Position: e.RealPosition(definition.Pos()),
 					Prefix:   FromRootFile,
 					Suffix:   ident.Obj.Name,
 				})
 
 			} else if sel, ok := definition.Fun.(*ast.SelectorExpr); ok {
 				functionCalls = append(functionCalls, &FunctionCall{
-					Position: int(definition.Pos()) - 1,
+					Position: e.RealPosition(definition.Pos()),
 					Prefix:   Ident(sel.X),
 					Suffix:   Ident(sel.Sel),
 				})

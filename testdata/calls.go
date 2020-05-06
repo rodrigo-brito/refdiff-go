@@ -2,14 +2,12 @@
 // Another line to test parser
 // One more...
 
-package main
+package testdata
 
 import (
 	"fmt"
 	"image"
 	"strconv"
-
-	"parser/testdata/src/lib"
 )
 
 type Printer interface {
@@ -17,12 +15,17 @@ type Printer interface {
 	PrintInt(int)
 }
 
-type TypeAlias int
+type Writer func(string)
+
+type (
+	TypeAlias  int
+	emptyWatch chan Test
+)
 
 type Test struct {
 	Name      string
 	Year      int
-	validator *lib.Validator
+	validator *Validator
 }
 
 func myfunc(*image.Point, []float64) {}
@@ -48,12 +51,8 @@ func (t *Test) PrintString(value string) {
 
 func (t *Test) PrintInt(value int) {
 	content := strconv.Itoa(value)
-	validator := new(lib.Validator)
-	fmt.Println("[áç~!]" +
-		"[áç~!]" +
-		"[áç~!]" +
-		"[áç~!]" +
-		"[áç~!]")
+	validator := new(Validator)
+	fmt.Println("[áç~!]") // test utf8 parse
 	res := Bar(value)
 	if t.validator.ValidNumber(value, res) && validator.ValidName("test") {
 		t.PrintString(content)

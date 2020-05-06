@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"go/ast"
 	"go/parser"
@@ -20,6 +21,10 @@ const (
 	FunctionType  NodeType = "Function"
 	PrimitiveType NodeType = "Type"
 	FromRootFile           = "_ROOT_"
+)
+
+var (
+	ErrParseFile = errors.New("error on parse file")
 )
 
 type Node struct {
@@ -76,7 +81,7 @@ func NewExtractor(rootFolder, filename string) (*Extractor, error) {
 
 	extractor.astFile, err = parser.ParseFile(extractor.fileSet, path, extractor.fileContent, parser.ParseComments)
 	if err != nil {
-		return nil, err
+		return nil, ErrParseFile
 	}
 
 	return extractor, nil
@@ -257,11 +262,12 @@ func (e Extractor) Extract() []*Node {
 				HasBody:        true,
 			})
 		case *ast.GenDecl:
-			if len(definition.Specs) > 0 {
-				if spec, ok := definition.Specs[0].(*ast.TypeSpec); ok {
+			for _, spec := range definition.Specs {
+				if spec, ok := spec.(*ast.TypeSpec); ok {
 					switch spec.Type.(type) {
 					case *ast.Ident,
 						*ast.MapType,
+						*ast.ChanType,
 						*ast.FuncType,
 						*ast.ArrayType,
 						*ast.SelectorExpr:
@@ -271,9 +277,9 @@ func (e Extractor) Extract() []*Node {
 							Name:      spec.Name.Name,
 							Parent:    &parent,
 							Namespace: e.getNamespace(""),
-							Start:     e.RealPosition(definition.Pos()),
-							End:       e.RealPosition(definition.End()),
-							Line:      e.fileSet.Position(definition.Pos()).Line,
+							Start:     e.RealPosition(spec.Pos()),
+							End:       e.RealPosition(spec.End()),
+							Line:      e.fileSet.Position(spec.Pos()).Line,
 							HasBody:   false,
 						})
 					}

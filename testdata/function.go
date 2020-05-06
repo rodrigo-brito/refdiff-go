@@ -2,7 +2,7 @@
 // Another line to test parser
 // One more...
 
-package lib
+package testdata
 
 import "strings"
 

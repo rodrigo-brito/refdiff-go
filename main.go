@@ -9,8 +9,9 @@ import (
 )
 
 func main() {
-	var fileName = flag.String("file", "", "file path, ex: main.go")
-	var rootFolder = flag.String("directory", "", "root folder, ex: /tmp")
+	debug := flag.Bool("debug", false, "file path, ex: main.go")
+	fileName := flag.String("file", "", "enable debug mode")
+	rootFolder := flag.String("directory", "", "root folder, ex: /tmp")
 	flag.NewFlagSet("file", flag.ExitOnError)
 	flag.NewFlagSet("directory", flag.ExitOnError)
 	flag.Parse()
@@ -26,17 +27,30 @@ func main() {
 
 	extractor, err := NewExtractor(*rootFolder, *fileName)
 	if err != nil {
+		if err == ErrParseFile {
+			fmt.Print("[]")
+			return
+		}
+
 		log.Fatalf("error on init extractor: %v", err)
 	}
 
 	nodes := extractor.Extract()
-	content, err := json.MarshalIndent(nodes, "", "\t")
-	if err != nil {
-		log.Fatal(err)
+
+	if debug != nil && *debug {
+		content, err := json.MarshalIndent(nodes, "", "\t")
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		_, err = fmt.Fprint(os.Stdout, string(content))
+		if err != nil {
+			log.Fatal(err)
+		}
+		return
 	}
 
-	_, err = fmt.Fprint(os.Stdout, string(content))
-	//err = json.NewEncoder(os.Stdout).Encode(nodes)
+	err = json.NewEncoder(os.Stdout).Encode(nodes)
 	if err != nil {
 		log.Fatal(err)
 	}

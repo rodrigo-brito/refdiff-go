@@ -1,15 +1,15 @@
-# go-ast-parser
+# refdiff-go
 
 ![tests](https://github.com/rodrigo-brito/go-ast-parser/workflows/tests/badge.svg)
 [![Go Report](https://goreportcard.com/badge/github.com/rodrigo-brito/go-ast-parser)](https://goreportcard.com/report/github.com/rodrigo-brito/go-ast-parser)
 [![GoDoc](https://godoc.org/github.com/rodrigo-brito/go-ast-parser?status.svg)](https://godoc.org/github.com/rodrigo-brito/go-ast-parser)
 
-Parser Go File to a list of structs, interfaces and functions in JSON format.
+RefDiff Go Module
 
 ## Usage
 
 ```bash
-$ go build
+$ go build -o parser
 $ ./parser -file testdata/example.go
 ```
 

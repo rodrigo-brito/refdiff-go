@@ -1,11 +1,11 @@
 on: [push, pull_request]
 name: tests
 jobs:
-  lint:
+  go-lint:
     runs-on: ubuntu-latest
     steps:
       - name: Install Go
-        uses: actions/setup-go@v1
+        uses: actions/setup-go@v2
         with:
           go-version: 1.14.x
       - name: Checkout code
@@ -17,19 +17,14 @@ jobs:
         run: |
           export PATH=$PATH:$(go env GOPATH)/bin
           golangci-lint -E gocyclo,gofmt,golint,unconvert,goimports,depguard,gocritic,errcheck run
-  test:
-    strategy:
-      matrix:
-        go-version: [1.13.x, 1.14.x]
-        platform: [ubuntu-latest]
-    runs-on: ${{ matrix.platform }}
+  go-test:
+    runs-on: ubuntu-latest
     steps:
-      - name: Install Go
-        if: success()
-        uses: actions/setup-go@v1
-        with:
-          go-version: ${{ matrix.go-version }}
       - name: Checkout code
         uses: actions/checkout@v1
+      - name: Install Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: "1.14.x"
       - name: Run tests
-        run: go test -v -covermode=count
+        run: go test -cover -race parser/...

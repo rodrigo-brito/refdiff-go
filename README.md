@@ -4,79 +4,68 @@
 [![Go Report](https://goreportcard.com/badge/github.com/rodrigo-brito/go-ast-parser)](https://goreportcard.com/report/github.com/rodrigo-brito/go-ast-parser)
 [![GoDoc](https://godoc.org/github.com/rodrigo-brito/go-ast-parser?status.svg)](https://godoc.org/github.com/rodrigo-brito/go-ast-parser)
 
-RefDiff Go Module
+Support for Go programming language in RefDiff
 
-## Usage
+## Enviroment Variables
 
 ```bash
-$ go build -o parser
-$ ./parser -file testdata/example.go
+REFDIFF_GO_PARSER=/usr/bin/refdiff-go-parser # customize parser location
 ```
 
-## Example of output
+## Go AST Parser
 
-```json
-[
-  {
-    "type": "File",
-    "start": 1,
-    "end": 27,
-    "name": "example.go",
-    "namespace": "testdata/",
-    "parent": null,
-    "tokens": [
-      "1-9",
-      "9-18",
-      "17-19",
-      ...
-      "315-317"
-    ]
-  },
-  {
-    "type": "Interface",
-    "start": 8,
-    "end": 10,
-    "name": "Printer",
-    "namespace": "",
-    "parent": "testdata/example.go"
-  },
-  {
-    "type": "Struct",
-    "start": 12,
-    "end": 16,
-    "name": "Test",
-    "namespace": "testdata/",
-    "parent": "testdata/example.go"
-  },
-  {
-    "type": "Function",
-    "start": 18,
-    "end": 18,
-    "name": "myfunc",
-    "namespace": "testdata/",
-    "parent": "testdata/example.go",
-    "parameter_names": ["i", "s", "err", "pt", "x"],
-    "parameter_types": ["int", "string", "error", "image.Point", "[]float64"]
-  },
-  {
-    "type": "Function",
-    "start": 20,
-    "end": 22,
-    "name": "Print",
-    "namespace": "testdata/Test.",
-    "parent": "testdata/Test"
-  },
-  {
-    "type": "Function",
-    "start": 24,
-    "end": 27,
-    "name": "Bar",
-    "namespace": "testdata/",
-    "parent": "testdata/example.go",
-    "parameter_names": ["bla"],
-    "parameter_types": ["int"]
-  }
-]
+```bash
+$ go build -o refdiff-go-parser parser/main.go
+$ ./refdiff-go-parser -file parser/testdata/example.go
+```
+
+## Installation
+
+- Follow installation instructions for [RefDiff Core](https://github.com/aserg-ufmg/RefDiff)
+- Copy `refdiff-plugin` to your project envrironment
+- Download the Go parser in [release page](https://github.com/rodrigo-brito/refdiff-go/releases) and include in your PATH (optional)
+
+## Example of usage
+
+```java
+package refdiff.examples;
+
+import java.io.File;
+
+import refdiff.core.RefDiff;
+import refdiff.core.diff.CstDiff;
+import refdiff.core.diff.Relationship;
+import refdiff.parsers.go.GoPlugin;
+
+public class RefDiffExampleGolang {
+	public static void main(String[] args) throws Exception {
+		runExample();
+	}
+
+	private static void runExample() throws Exception {
+		// This is a temp folder to clone or checkout git repositories.
+		File tempFolder = new File("temp");
+
+		// Creates a RefDiff instance configured with the Go plugin.
+		try (GoPlugin goPlugin = new GoPlugin(tempFolder)) {
+			RefDiff refDiffGo = new RefDiff(goPlugin);
+
+			File repo = refDiffGo.cloneGitRepository(
+				new File(tempFolder, "go-refactoring-example.git"),
+				"https://github.com/rodrigo-brito/go-refactoring-example.git");
+
+			CstDiff diffForCommit = refDiffGo.computeDiffForCommit(repo, "2a2bc542e3b9ea549936556c08ebeaaf7e98adbc");
+			printRefactorings("Refactorings found in go-refactoring-example 2a2bc542e3b9ea549936556c08ebeaaf7e98adbc", diffForCommit);
+		}
+	}
+
+	private static void printRefactorings(String headLine, CstDiff diff) {
+		System.out.println(headLine);
+		for (Relationship rel : diff.getRefactoringRelationships()) {
+			System.out.println(rel.getStandardDescription());
+		}
+	}
+}
 ```
 
 ## License

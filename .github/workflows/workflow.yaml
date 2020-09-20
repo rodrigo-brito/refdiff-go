@@ -1,22 +1,6 @@
 on: [push, pull_request]
 name: tests
 jobs:
-  go-lint:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Install Go
-        uses: actions/setup-go@v2
-        with:
-          go-version: 1.14.x
-      - name: Checkout code
-        uses: actions/checkout@v1
-      - name: Install golangci-lint
-        run: |
-          go get github.com/golangci/golangci-lint/cmd/golangci-lint
-      - name: Run linters
-        run: |
-          export PATH=$PATH:$(go env GOPATH)/bin
-          golangci-lint -E gocyclo,gofmt,golint,unconvert,goimports,depguard,gocritic,errcheck run
   go-test:
     runs-on: ubuntu-latest
     steps:
@@ -27,4 +11,4 @@ jobs:
         with:
           go-version: "1.14.x"
       - name: Run tests
-        run: go test -cover -race parser/...
+        run: cd parser && go test -cover ./...

@@ -6,6 +6,8 @@
 
 Support for Go programming language in RefDiff
 
+*Full Papper*: Rodrigo Brito, Marco Tulio Valente. RefDiff4Go: Detecting Refactorings in Go. In 14th Brazilian Symposium on Software Components, Architectures, and Reuse (SBCARS), pages 1-10, 2020. [[pdf]](https://homepages.dcc.ufmg.br/~mtov/pub/2020-sbcars.pdf)
+
 ## Enviroment Variables
 
 ```bash
